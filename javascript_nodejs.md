@@ -42,6 +42,32 @@ let b = 20;
 
 ---
 
+### 🪤 Classic Interview Trap: `var` vs `let` in Loop with `setTimeout` ⭐⭐⭐
+
+```javascript
+// Case 1: with 'var'
+for (var i = 0; i < 3; i++) {
+  setTimeout(() => {
+    console.log(i);
+  }, 1000);
+}
+// 🎯 Output after 1 sec: 3, 3, 3 (NOT 0, 1, 2!)
+
+// Case 2: with 'let'
+for (let i = 0; i < 3; i++) {
+  setTimeout(() => {
+    console.log(i);
+  }, 1000);
+}
+// 🎯 Output after 1 sec: 0, 1, 2
+```
+
+#### 💡 Interviewer ko Explanation:
+* **`var` (Function Scope):** `var` ke paas poore loop ke liye **sirf ek hi global/function memory space** hota hai. Loop 1 millisecond me chal kar khatam ho jata hai aur `i` badh kar **`3`** ho jata hai. Jab 1 second baad `setTimeout` ke callbacks chalte hain, to teeno callbacks usi same memory variable `i` ko dekhte hain jisme **`3`** store hai! Isliye **`3, 3, 3`** print hota hai.
+* **`let` (Block Scope `{}`):** `let` block scoped hota hai. Har ek iteration me JavaScript ek **naya `i` variable** banata hai aur uski value ko closure me lock kar deta hai. Isliye 1 second baad **`0, 1, 2`** print hota hai!
+
+---
+
 ## 2. == vs === (Type Coercion)
 
 * **`==` (Loose Equality):** Sirf **Value** compare karta hai. Type alag ho to JavaScript zabardasti convert (Type Coercion) kar leta hai.
@@ -163,6 +189,32 @@ console.log("Server agle users ki request handle karne ke liye ready hai!");
 
 ---
 
+### 🥞 Call Stack Kya Hota Hai? (The Execution Engine) ⭐⭐⭐
+
+#### 📌 Direct Definition:
+* **English:** *"The Call Stack is a LIFO (Last In, First Out) data structure in the JavaScript engine that tracks which function is currently being executed and what needs to be executed next."*
+* **Hindi:** *"Call Stack JavaScript engine ka wo main engine (workbench) hai jahan sara synchronous code execute hota hai. Ye LIFO (Last-In, First-Out) rule follow karta hai."*
+
+#### 🍽️ Real-Life Analogy: "Wedding me Rakhi hui Plates"
+* Jab aap shaadi me plates ka dher dekhte ho:
+  * Nayi plate sabse **upar rakhi jaati hai (PUSH)**.
+  * Aur jab koi khana khane aata hai, to sabse **upar wali plate pehle uthata hai (POP)**.
+* **JavaScript me:**
+  * Jab koi function call hota hai, to wo Call Stack me **Push** hota hai.
+  * Jab function complete (return) hota hai, to wo Call Stack se **Pop (delete)** ho jata hai.
+
+#### ⚠️ "Stack Overflow" Kya Hota Hai? (Bonus Interview Sawaal):
+Jab koi recursive function bina kisi stopping condition (base case) ke continuously khud ko call karta rehta hai:
+```javascript
+function infinite() {
+  infinite(); // 👈 Kabhi nahi rukega!
+}
+infinite(); // 💥 Error: Maximum call stack size exceeded (Stack Overflow!)
+```
+Call Stack ki memory full ho jati hai aur browser ya server crash ho jata hai!
+
+---
+
 ### 🏥 The Doctor & Clinic Analogy (Zindagi bhar nahi bhologe!):
 Imagine karo ek busy Doctor ka clinic hai:
 1. **Doctor (Call Stack):** Doctor akela hai (Single-Threaded). Ek time par ek hi patient ko check kar sakta hai.
@@ -262,6 +314,108 @@ console.log("5");
 * **Synchronous code continue:** Uske baad seedha agla synchronous code `console.log("5")` chala (isliye **`5`** print hua).
 * **Microtask Queue:** `.then()` ka callback Microtask Queue me gaya tha, to Call stack khali hote hi pehle wo chala (isliye **`4`** print hua).
 * **Macrotask Queue:** `setTimeout` ka callback sabse aakhri me chala (isliye **`2`** print hua).
+
+---
+
+### 🪤 Event Loop Trap #3: Chained Promises & Nested Timers (FIFO Order) ⭐⭐⭐
+
+```javascript
+console.log("1");
+
+setTimeout(() => {
+  console.log("2");
+}, 0);
+
+Promise.resolve().then(() => {
+  console.log("3");
+  setTimeout(() => {
+    console.log("4");
+  }, 0);
+}).then(() => {
+  console.log("5");
+});
+
+console.log("6");
+```
+
+#### 🎯 Output:
+```
+1
+6
+3
+5
+2
+4
+```
+
+#### 💡 Interviewer ko Explanation:
+1. **Synchronous code pehle chala:** `1` aur `6` Call Stack me print ho gaye.
+2. **Microtasks Queue (VIP) pehle poori khali hoti hai:**
+   * Pehla `.then()` chala ➔ Print hua **`3`**. Iske andar `setTimeout` schedule hua jo `4` ko Macrotask queue me piche bhej deta hai.
+   * Chained `.then()` chala ➔ Print hua **`5`** (Kyunki Event loop Macrotasks tab tak shuru nahi karta jab tak Microtasks poori 0 na ho jayein!).
+3. **Macrotasks Queue (FIFO - First-In First-Out):**
+   * `setTimeout(..., 2)` line 3 par **pehle** queue me aaya tha.
+   * `setTimeout(..., 4)` promise ke andar **baad me** queue me aaya.
+   * Isliye pehle **`2`** print hua, fir **`4`** print hua!
+
+---
+
+### 👑 Event Loop Trap #4: The Boss Question (`async/await` + `Promise` + `setTimeout`) ⭐⭐⭐
+
+```javascript
+async function async1() {
+  console.log("async1 start");
+  await async2();
+  console.log("async1 end"); // 👈 Dhyan se: await ke baad ka code Microtask Queue me chala jata hai!
+}
+
+async function async2() {
+  console.log("async2");
+}
+
+console.log("script start");
+
+setTimeout(() => {
+  console.log("setTimeout");
+}, 0);
+
+async1();
+
+new Promise((resolve) => {
+  console.log("promise1");
+  resolve();
+}).then(() => {
+  console.log("promise2");
+});
+
+console.log("script end");
+```
+
+#### 🎯 Correct Output Sequence:
+```
+1. script start
+2. async1 start
+3. async2
+4. promise1
+5. script end
+6. async1 end
+7. promise2
+8. setTimeout
+```
+
+#### 💡 Step-by-Step Breakdown:
+1. **Synchronous Phase:**
+   * `script start` print hua.
+   * `setTimeout` callback Macrotask queue me chala gaya.
+   * `async1()` call hua ➔ `async1 start` print hua.
+   * `await async2()` call hua ➔ `async2` print hua. `await` ne execution roka aur `async1 end` ko **Microtask Queue** me daal diya!
+   * `new Promise` constructor execute hua ➔ `promise1` print hua. `.then()` callback (`promise2`) **Microtask Queue** me chala gaya!
+   * `script end` print hua.
+2. **Microtask Queue Phase (Drain all VIPs):**
+   * Queue me pehle se laga tha `async1 end` ➔ Print hua!
+   * Queue me doosra tha `promise2` ➔ Print hua!
+3. **Macrotask Queue Phase:**
+   * Aakhri me `setTimeout` chala!
 
 ---
 
