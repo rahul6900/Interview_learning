@@ -199,28 +199,58 @@ db.users.updateOne(
 ---
 
 ## 9. `findOneAndUpdate` vs `updateOne`
+
+### 🎯 Interview Answer: Key Difference
+
+| Feature | `updateOne` | `findOneAndUpdate` |
+| :--- | :--- | :--- |
+| **Kaam** | Sirf document update karta hai | Update karta hai **+ updated document return** karta hai |
+| **Return Value** | `{ matchedCount: 1, modifiedCount: 1 }` | Updated document khud |
+| **Kab use karein** | Jab sirf update karna ho, document ki zaroorat nahi | Jab update ke baad naya data UI pe dikhana ho (e.g. profile update) |
+
+### Example:
 ```javascript
+// updateOne — sirf update, document nahi milta
+db.users.updateOne({ _id: 101 }, { $set: { age: 28 } })
+// Returns: { matchedCount: 1, modifiedCount: 1 }
+
+// findOneAndUpdate — update + naya document milta hai
 db.users.findOneAndUpdate(
   { _id: 101 },
   { $set: { age: 28 } },
   { returnDocument: "after" } // 👈 Updated document pane ke liye
 )
+// Returns: { _id: 101, name: "Aman", age: 28, ... }
 ```
 > **Mongoose Tip:** Mongoose me `{ new: true }` likhte hain, MongoDB native driver me `{ returnDocument: "after" }`!
+> **Real Use Case:** User ne profile update kiya → updated profile card UI pe dikhao → `findOneAndUpdate` use karo!
 
 ---
 
 ## 10. Upsert & `$setOnInsert`
+
+### 🎯 Interview Answer: Upsert kya hota hai?
+**Upsert = Update + Insert**
+- Document **milta hai** → Update kar do
+- Document **nahi milta** → Naya Insert kar do
+- Ek hi query mein dono kaam! No need to check first.
+
+### Real Use Case:
+User login kiya → pehli baar hai to naya document banao, warna sirf `lastLogin` update karo:
+
 ```javascript
 db.users.updateOne(
-  { name: "Rohan" },
+  { name: "Rohan" },                          // 1. Dhundo
   {
-    $set: { age: 24, "address.city": "Delhi" },
-    $setOnInsert: { createdAt: new Date() } // Sirf INSERT hone par chalta hai
+    $set: { age: 24, "address.city": "Delhi" }, // 2. Update karo (ya insert mein bhi lagega)
+    $setOnInsert: { createdAt: new Date() }     // 3. Sirf INSERT hone par chalta hai
   },
-  { upsert: true }
+  { upsert: true }                             // 4. Nahi mila? Insert kar do!
 )
 ```
+
+> **`$setOnInsert`:** Sirf tab chalta hai jab document **naya insert** hota hai. Update hone par yeh field ignore ho jaati hai!
+> **Real Use Case:** User ka pehla login → `createdAt` set karo. Dobara login → sirf `lastLogin` update karo. Ek hi query!
 
 ---
 

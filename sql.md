@@ -78,33 +78,76 @@ WHERE salary < 30000;
 
 ## 4. SQL JOINS Mastery ⭐⭐⭐
 
-### Sample Tables:
-* `Employees (emp_id, emp_name, dept_id)`
-* `Departments (dept_id, dept_name)`
+### 🎯 Quick Comparison Table (Interview Ready)
 
-### 1. INNER JOIN (Matching Data Only):
-Dono tables ka sirf wahi data dega jo match hota ho:
+| JOIN Type | Kya Return Karta Hai | NULL Kab Aata Hai |
+| :--- | :--- | :--- |
+| **INNER JOIN** | Sirf dono tables ka matching data | Kabhi nahi |
+| **LEFT JOIN** | Left table ke saare rows + matching right | Right table mein match na ho toh `NULL` |
+| **RIGHT JOIN** | Right table ke saare rows + matching left | Left table mein match na ho toh `NULL` |
+| **FULL OUTER JOIN** | Dono tables ke saare rows | Jahan bhi match na ho wahan `NULL` |
+
+---
+
+### Sample Tables:
+```
+Employees:                    Departments:
+emp_id | emp_name | dept_id   dept_id | dept_name
+-------|----------|--------   --------|----------
+1      | Aman     | 10        10      | IT
+2      | Rohan    | 20        20      | HR
+3      | Priya    | NULL      30      | Finance (no employee!)
+```
+
+### 1. INNER JOIN (Sirf matching data)
+Dono tables ka sirf wahi data dega jo **dono mein match** hota ho:
 ```sql
 SELECT e.emp_name, d.dept_name
 FROM Employees e
 INNER JOIN Departments d ON e.dept_id = d.dept_id;
 ```
+**Output:** Aman(IT), Rohan(HR) — Priya aur Finance dono OUT ❌
 
-### 2. LEFT JOIN (All Left + Matching Right):
-Left table ke saare employees aayenge, chahe department assign na hua ho (`NULL` aayega):
+---
+
+### 2. LEFT JOIN (Left table ke saare rows)
+Left table ke **saare rows** aayenge, right mein match na ho toh `NULL`:
 ```sql
 SELECT e.emp_name, d.dept_name
 FROM Employees e
 LEFT JOIN Departments d ON e.dept_id = d.dept_id;
 ```
+**Output:** Aman(IT), Rohan(HR), Priya(**NULL**) ✅
+> 🎯 **Real Use Case:** Saare customers dikhao, chahe unhone order kiya ho ya na kiya ho!
 
-### 3. RIGHT JOIN (All Right + Matching Left):
-Right table ke saare departments aayenge, chahe us department me koi employee na ho:
+---
+
+### 3. RIGHT JOIN (Right table ke saare rows)
+Right table ke **saare rows** aayenge, left mein match na ho toh `NULL`:
 ```sql
 SELECT e.emp_name, d.dept_name
 FROM Employees e
 RIGHT JOIN Departments d ON e.dept_id = d.dept_id;
 ```
+**Output:** Aman(IT), Rohan(HR), **NULL**(Finance) ✅
+> 🎯 **Real Use Case:** Saare departments dikhao, chahe unme koi employee ho ya na ho!
+
+---
+
+### 4. FULL OUTER JOIN (Dono tables ke saare rows)
+Dono tables ke **saare rows** aayenge, match na ho toh `NULL` dono taraf:
+```sql
+SELECT e.emp_name, d.dept_name
+FROM Employees e
+FULL OUTER JOIN Departments d ON e.dept_id = d.dept_id;
+```
+**Output:** Aman(IT), Rohan(HR), Priya(**NULL**), **NULL**(Finance) ✅
+> ⚠️ **MySQL mein FULL OUTER JOIN nahi hota!** Workaround:
+> ```sql
+> SELECT * FROM Employees e LEFT JOIN Departments d ON e.dept_id = d.dept_id
+> UNION
+> SELECT * FROM Employees e RIGHT JOIN Departments d ON e.dept_id = d.dept_id;
+> ```
 
 ---
 
