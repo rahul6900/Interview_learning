@@ -262,3 +262,37 @@ Interviewer poochega: *"ACID properties kya hoti hain?"*
 * **Clustered Index:** Table ke physical order ko define karta hai (By default **Primary Key** Clustered Index hoti hai). Table me sirf **EK** clustered index ho sakta hai.
 * **Non-Clustered Index:** Kitab ke index jaisa hota hai jo actual data ke pointer ko store karta hai. Table me multiple ho sakte hain.
 * **Trap:** Har column par index kyu nahi banate? Kyunki index banane se `INSERT`, `UPDATE`, `DELETE` operations **SLOW** ho jaate hain (index table update karni padti hai)!
+
+---
+
+## 10. Real Interview Scenario-Based Queries Practice ⭐⭐⭐
+
+### Scenario 1: Group By + Aggregation (Max / Min with Filter)
+> **Question:** Har `city` ki sabse badi salary (`maxSalary`) nikaalo un employees ki jinka `status = 'active'` ho.
+```sql
+SELECT city, MAX(salary) AS maxSalary
+FROM Employees
+WHERE status = 'active'
+GROUP BY city
+ORDER BY city ASC;
+```
+
+### Scenario 2: Group By + COUNT with Filter
+> **Question:** Har `course` me kitne students hain (`studentCount`) jinhone fees bhari hai (`feesPaid = true`)?
+```sql
+SELECT course, COUNT(*) AS studentCount
+FROM Students
+WHERE feesPaid = true
+GROUP BY course;
+```
+
+### Scenario 3: Filter on Aggregated Data (HAVING Clause)
+> **Question:** Wo customers dhundho jinke "completed" orders ka total amount `2000` se zyada ho.
+```sql
+SELECT customer, SUM(amount) AS totalAmount
+FROM Orders
+WHERE status = 'completed'
+GROUP BY customer
+HAVING SUM(amount) > 2000;
+```
+

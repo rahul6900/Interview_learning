@@ -481,3 +481,51 @@ db.orders.aggregate(
   { allowDiskUse: true } // 👈 Hard disk temp storage use karega
 )
 ```
+
+---
+
+## 21. Real Interview Scenario-Based Aggregation Practice ⭐⭐⭐
+
+### Scenario 1: Category-wise Max/Min Price (With Filter)
+> **Question:** Har `category` ka sabse sasta product (`minPrice`) nikaalo jinka `inStock: true` ho.
+```javascript
+db.products.aggregate([
+  { $match: { inStock: true } },
+  {
+    $group: {
+      _id: "$category",
+      minPrice: { $min: "$price" }
+    }
+  }
+])
+```
+
+### Scenario 2: Count per Group (Students in Course)
+> **Question:** Har `course` me kitne students hain (`studentCount`) jinhone fees bhari hai (`feesPaid: true`)?
+```javascript
+db.students.aggregate([
+  { $match: { feesPaid: true } },
+  {
+    $group: {
+      _id: "$course",
+      studentCount: { $sum: 1 } // 👈 Har matching document ke liye +1 count
+    }
+  }
+])
+```
+
+### Scenario 3: Filter + Group + Having (Customer Total > 2000)
+> **Question:** Wo customers dhundho jinke "completed" orders ka total amount `2000` se zyada ho.
+```javascript
+db.orders.aggregate([
+  { $match: { status: "completed" } },
+  {
+    $group: {
+      _id: "$customer",
+      totalAmount: { $sum: "$amount" }
+    }
+  },
+  { $match: { totalAmount: { $gt: 2000 } } } // 👈 SQL ke HAVING jaisa kaam karta hai
+])
+```
+
