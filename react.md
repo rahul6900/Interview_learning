@@ -445,3 +445,188 @@ Class components ke 3 lifecycle methods functional components me `useEffect` se 
 | **Mounting (Screen par aana)** | `componentDidMount` | `useEffect(() => { ... }, [])` |
 | **Updating (State/Props badalna)**| `componentDidUpdate` | `useEffect(() => { ... }, [state])` |
 | **Unmounting (Screen se hatna)**| `componentWillUnmount` | `useEffect(() => { return () => cleanup(); }, [])` |
+
+---
+
+## 10.1. `React.memo` vs `useMemo` (Performance Trap) ⭐⭐⭐
+
+| Feature | `useMemo` | `React.memo` |
+| :--- | :--- | :--- |
+| **Kiske upar lagta hai?** | Ek specific **Calculation / Value** par (component ke andar) | Ek **POORE COMPONENT** par (HOC - Higher Order Component) |
+| **Kaam kya karta hai?** | Heavy calculation / filter data ka result cache karta hai | Component ko tab tak re-render nahi hone deta jab tak **uske PROPS na badle hon** |
+| **Type** | React Hook | Higher-Order Component (Wrapper) |
+
+### Code Example:
+```jsx
+// Child component ko React.memo me wrap kiya:
+const Child = React.memo(({ name }) => {
+  console.log("Child render hua!");
+  return <h3>Hello {name}</h3>;
+});
+
+function Parent() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <button onClick={() => setCount(count + 1)}>Increment: {count}</button>
+      {/* Jab parent re-render hoga (count badlega), 
+          Child re-render NAHI hoga kyunki 'name' prop change nahi hua! */}
+      <Child name="Aman" />
+    </div>
+  );
+}
+```
+> 🎯 **Interview Answer:** *"Sir, `useMemo` heavy function ke return value ko memoize karta hai, jabki `React.memo` poore component ko memoize karta hai taaki unnecessary parent re-renders se child component re-render na ho jab tak props change na hon."*
+
+---
+
+## 10.2. Code Splitting & Lazy Loading (`React.lazy` + `<Suspense>`) ⭐⭐
+
+### Problem (Without Lazy Loading):
+Badi apps me agar 50 pages hain, toh browser pehli baar me poore 50 pages ka heavy bundle download karta hai, jisse initial page load slow ho jata hai.
+
+### Solution:
+**Lazy Loading** matlab component tabhi download hoga jab user sach me us page par click karega.
+
+```jsx
+import React, { lazy, Suspense } from 'react';
+
+// Lazy Import:
+const AdminDashboard = lazy(() => import('./AdminDashboard'));
+
+function App() {
+  return (
+    <div>
+      {/* Suspense fallback loader dikhata hai jab tak file download ho rahi ho */}
+      <Suspense fallback={<div>Loading Dashboard... ⏳</div>}>
+        <AdminDashboard />
+      </Suspense>
+    </div>
+  );
+}
+```
+> 🎯 **Interview Answer:** *"Sir, bundle size chhota karne aur initial load time fast karne ke liye hum `React.lazy()` aur `<Suspense fallback={<Loader />}>` ke through route-level code splitting karte hain."*
+
+---
+
+## 11. Redux Toolkit (RTK) vs Context API Deep Dive ⭐⭐⭐
+
+### Kyu Context API large apps ke liye slow ho jata hai?
+* **Problem:** Context ki koi bhi ek value badalegi, toh context ko consume karne wale **saare components re-render** ho jaate hain.
+* **Redux Toolkit Solution:** `useSelector` selective subscription deta hai — sirf wahi component re-render hoga jiska specific slice data change hua ho.
+
+### RTK Architecture Flow:
+```
+UI Button Click 
+   ⬇️
+dispatch(action)       --> useDispatch()
+   ⬇️
+Reducer Slice           --> createSlice() state update karta hai
+   ⬇️
+Redux Store             --> Single source of truth update hota hai
+   ⬇️
+UI Re-renders           --> useSelector() se naya data component ko milta hai
+```
+
+---
+
+## 12. Top Machine Coding Interview Tasks (ClecoTech Special) ⭐⭐⭐
+
+### Task 1: Search Bar with Debounce (Most Important)
+```javascript
+import React, { useState, useEffect } from 'react';
+
+export default function SearchBar() {
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  useEffect(() => {
+    // 500ms ka timer start karo
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 500);
+
+    // Agar user dubara type kare, purana timer cancel karo (Cleanup)
+    return () => clearTimeout(handler);
+  }, [query]);
+
+  useEffect(() => {
+    if (debouncedQuery) {
+      console.log("Triggering API Call for:", debouncedQuery);
+    }
+  }, [debouncedQuery]);
+
+  return (
+    <input
+      type="text"
+      placeholder="Search here..."
+      value={query}
+      onChange={(e) => setQuery(e.target.value)}
+    />
+  );
+}
+```
+
+---
+
+### Task 2: Custom Hook (`useFetch` with Error & Abort Handling)
+```javascript
+import { useState, useEffect } from 'react';
+
+export function useFetch(url) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+    setLoading(true);
+
+    fetch(url)
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to fetch");
+        return res.json();
+      })
+      .then(json => {
+        if (!isCancelled) {
+          setData(json);
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        if (!isCancelled) {
+          setError(err.message);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [url]);
+
+  return { data, loading, error };
+}
+```
+
+---
+
+### Task 3: Counter with Min-Boundary (0)
+```javascript
+import React, { useState } from 'react';
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <h2>Count: {count}</h2>
+      <button onClick={() => setCount(prev => prev + 1)}>Increment</button>
+      <button onClick={() => setCount(prev => Math.max(0, prev - 1))}>Decrement</button>
+      <button onClick={() => setCount(0)}>Reset</button>
+    </div>
+  );
+}
+```
+
