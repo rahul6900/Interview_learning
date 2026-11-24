@@ -15,6 +15,8 @@
 7. [UNION vs UNION ALL](#7-union-vs-union-all)
 8. [ACID Properties (Transactions in SQL)](#8-acid-properties)
 9. [SQL Indexing Basics (Clustered vs Non-Clustered)](#9-sql-indexing-basics)
+10. [Real Interview Scenario-Based Queries Practice](#10-real-interview-scenario-based-queries-practice-)
+11. [MySQL vs MongoDB: Complete Architectural Comparison & Decision Matrix](#11-mysql-vs-mongodb-complete-architectural-comparison--decision-matrix-)
 
 ---
 
@@ -295,4 +297,37 @@ WHERE status = 'completed'
 GROUP BY customer
 HAVING SUM(amount) > 2000;
 ```
+
+---
+
+## 11. MySQL vs MongoDB: Complete Architectural Comparison & Decision Matrix ⭐⭐⭐
+
+### Quick Comparison Table:
+| Feature | MySQL (RDBMS / SQL) | MongoDB (Document / NoSQL) |
+| :--- | :--- | :--- |
+| **Data Format** | Tables, Rows & Columns | Collections & JSON Documents (BSON) |
+| **Schema** | **Strict & Fixed** (Predefined structure) | **Dynamic & Flexible** (Schema-less) |
+| **Relationships** | Heavy **Foreign Keys & Joins** (`INNER/LEFT`) | **Embedded Documents** ya `$lookup` |
+| **Transactions** | **100% ACID Compliant** by default (InnoDB) | Multi-document ACID supported, best for high-throughput writes |
+| **Scaling** | **Vertical Scaling** (CPU/RAM upgrade) | **Horizontal Scaling** (Sharding across clusters) |
+| **Query Language** | SQL Syntax (`SELECT * FROM...`) | JavaScript Object Query / Aggregation Pipeline |
+
+---
+
+### 🎯 Kab Kaunsa Database Use Karein? (Decision Guide)
+
+#### A. MySQL KAB CHOOSE KAREIN?
+1. **Financial & Payment Data (ACID Compliance):** Jahan 1 paise ya 1 unit inventory ka bhi mismatch allow nahi hota (Bank transactions, payment gateways, e-commerce checkout).
+2. **Complex Relational Data (RBAC / ERP):** Jahan entities ke beech heavy relationships hon (Users <-> Roles <-> Permissions). Foreign Keys se `CASCADE ON DELETE` aur data integrity enforce hoti hai.
+3. **Fixed, Structured Schema:** Jahan data ka structure predefined ho aur bar-bar schema badalne ki zaroorat na ho.
+
+#### B. MongoDB KAB CHOOSE KAREIN?
+1. **Dynamic & Evolving Catalogs:** E-commerce multi-vendor portals jahan har product category ke attributes alag hon (Shoes vs Electronics vs Fashion).
+2. **High-Speed Bulk Writes & Logging:** IoT device logs, real-time activity streams, clickstream tracking jahan thousands of writes per second chahiye hon.
+3. **Native Nested JSON APIs:** Third-party APIs (Shopify APIs, Stripe webhooks) se deeply nested JSON data direct store karne ke liye bina Object-Relational mapping ke (Jaise TPP me).
+4. **Rapid Prototyping (MVPs):** Bina table migration scripts ke tezi se feature build karne ke liye.
+
+> 🎯 **Interview Answer (45-Sec Pitch):**
+> *"Sir, hum **MySQL** tab choose karte hain jab data structured ho, entities ke beech strict relationships hon, aur **ACID transactions** top priority hon (jaise Banking, Payments aur RBAC Inventory). Aur hum **MongoDB** tab use karte hain jab data dynamic ya nested JSON ho, schema bar-bar evolve ho raha ho, aur hume **high write speed aur horizontal scaling** chahiye ho (jaise E-commerce multi-vendor sync TPP me ya real-time logging me)."*
+
 

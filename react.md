@@ -630,3 +630,59 @@ export default function Counter() {
 }
 ```
 
+---
+
+## 13. React Query (TanStack Query) Mastery ⭐⭐⭐
+
+### Why React Query instead of `useEffect` + `axios`?
+
+Normally `useEffect` se API call karne me 3 badi problems hoti hain:
+1. **Har component me boilerplate:** Har baar 3 states banani padti hain (`const [data, setData] = useState()`, `loading`, `error`).
+2. **No Automatic Caching:** User agar doosre page par jaakar wapas aata hai, toh dobara loading spinner ghoomta hai.
+3. **No Automatic Background Refetching:** Agar data server par badal gaya, toh window focus par UI automatically sync nahi hota.
+
+### Code Comparison:
+
+#### ❌ Purana Tarika (Manual useEffect):
+```jsx
+const [products, setProducts] = useState([]);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState(null);
+
+useEffect(() => {
+  fetch("/api/products")
+    .then(res => res.json())
+    .then(data => { setProducts(data); setLoading(false); })
+    .catch(err => { setError(err); setLoading(false); });
+}, []);
+```
+
+#### ✅ Modern Tarika (React Query `useQuery`):
+```jsx
+import { useQuery } from '@tanstack/react-query';
+
+function ProductList() {
+  // data, isLoading, isError sab directly milta hai:
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['products'], // 👈 Cache key (unique identifier)
+    queryFn: () => fetch("/api/products").then(res => res.json()),
+    staleTime: 1000 * 60 * 5 // 5 minutes tak data ko fresh maano (no refetch)
+  });
+
+  if (isLoading) return <h3>Loading products...</h3>;
+  if (isError) return <h3>Error: {error.message}</h3>;
+
+  return (
+    <ul>
+      {data.map(p => <li key={p.id}>{p.title} - ₹{p.price}</li>)}
+    </ul>
+  );
+}
+```
+
+### 3 Key Features to Tell in Interview:
+1. **Server State Management:** Frontend UI state (`useState`) aur Backend Server state (`useQuery`) ko alag rakhta hai.
+2. **Automatic Caching & Stale-While-Revalidate:** Data memory me cache rehta hai, user page par wapas aane par turant cached data dikhta hai jabki background me silent refetch hota hai.
+3. **Window Focus Refetching:** User jab doosre browser tab se wapas app me aata hai, toh automatically latest data fetch ho jata hai.
+
+

@@ -529,3 +529,73 @@ db.orders.aggregate([
 ])
 ```
 
+---
+
+## 22. Bulk Operations: `insertMany()` vs `bulkWrite()` & CRUD Optimization ⭐⭐⭐
+
+### 1. `insertMany()` (Bulk Insert Only)
+Jab ek sath hazaron **naye documents** insert karne hon bina loop chalaye:
+```javascript
+const newProducts = [
+  { title: "Shoes", price: 2000, sku: "SH-01" },
+  { title: "Watch", price: 5000, sku: "WT-02" }
+];
+
+await Product.insertMany(newProducts);
+```
+* **Limit:** Sirf INSERT operation kar sakta hai. Update ya Delete nahi.
+
+---
+
+### 2. `bulkWrite()` (Heterogeneous Batching: Insert + Update + Delete Together) ⭐⭐⭐
+`bulkWrite()` ek hi single network request me alag-alag tarah ke operations batch karke execute karta hai:
+* `insertOne`
+* `updateOne` / `updateMany`
+* `deleteOne` / `deleteMany`
+* `replaceOne`
+
+#### 🎯 Real Project Use Case (The Privya Pursuit - TPP Hourly Sync):
+Hourly cron sync me supplier se kuch naye products aate hain (Insert), kuch purano ka stock badalta hai (Update), aur kuch discontinue hote hain (Delete). In sabko 1 single call me execute karne ke liye `bulkWrite` use hota hai:
+
+```javascript
+await Product.bulkWrite([
+  // 1. Naya product add karo:
+  {
+    insertOne: {
+      document: { title: "T-Shirt", price: 999, sku: "TS-10", stock: 50 }
+    }
+  },
+  // 2. Existing product ka stock & price update karo:
+  {
+    updateOne: {
+      filter: { sku: "SH-01" },
+      update: { $set: { stock: 15, price: 1899 } },
+      upsert: true // Agar na mile toh create kar do
+    }
+  },
+  // 3. Out-of-catalog product delete karo:
+  {
+    deleteOne: {
+      filter: { sku: "OLD-DISCONTINUED-99" }
+    }
+  }
+]);
+```
+
+### 📊 Quick Comparison:
+| Feature | `insertMany()` | `bulkWrite()` |
+| :--- | :--- | :--- |
+| **Allowed Operations** | Sirf **INSERT** | **Insert, Update, Delete, Upsert** sab mix |
+| **Performance** | Fast for pure data upload | **Super-Fast for Inventory Sync / Complex batching** |
+| **Payload Structure** | Plain documents ka array `[{...}, {...}]` | Operation objects ka array `[{ insertOne: ... }, { updateOne: ... }]` |
+
+---
+
+### 3. Production CRUD Optimization Checklist:
+1. **Indexing:** Search/Sort wale fields par B-Tree indexes (`sku`, `category`).
+2. **`.lean()`:** Mongoose overhead hatane ke liye read queries par `.lean()` use karo (50% less RAM).
+3. **Projection (`.select('title price')`):** Sirf zaroori fields fetch karo.
+4. **Keyset Pagination:** `.skip()` ki jagah `{ _id: { $gt: lastSeenId } }` use karo.
+5. **Connection Pooling:** `maxPoolSize: 50` concurrent connections ke liye.
+
+

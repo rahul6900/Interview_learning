@@ -18,6 +18,7 @@
 10. [PUT vs PATCH (Classic Trap)](#10-put-vs-patch)
 11. [Express.js Middleware & next()](#11-expressjs-middleware--next)
 12. [Authentication vs Authorization & JWT Security ⭐⭐⭐](#12-authentication-vs-authorization--jwt-security)
+13. [Asynchronous Event-Driven Node.js: Non-Blocking & Race Conditions](#13-asynchronous-event-driven-nodejs-non-blocking--race-conditions-)
 
 ---
 
@@ -639,5 +640,141 @@ res.cookie("token", jwtToken, {
   sameSite: "strict"  // 👈 CSRF attack block karega (Only same domain)
 });
 ```
+
+---
+
+## 13. Asynchronous Event-Driven Node.js: Non-Blocking & Race Conditions ⭐⭐⭐
+
+Interviewer: *"How do you write asynchronous event-driven JavaScript in Node.js to avoid blocking the main thread and prevent race conditions?"*
+
+### PART 1: Avoiding Main Thread Blocking
+
+#### 1. The Core Problem: Single-Threaded Event Loop
+Node.js ka Event Loop **Single-Threaded** hota hai. Agar koi heavy synchronous operation (e.g. `fs.readFileSync`, long loops, heavy crypto) chalega, toh Main Thread block ho jayega aur saare doosre users ki requests hang ho jayengi.
+
+#### 2. Solution A: Non-Blocking Asynchronous I/O
+Hamesha asynchronous promises/async-await use karo taaki I/O operations (Database, Network, File system) Libuv ke C++ background threads me chalein:
+```javascript
+// ❌ BLOCKS EVENT LOOP (Server Freezes!)
+const data = fs.readFileSync('/large.pdf');
+
+// ✅ NON-BLOCKING (Event loop remains free)
+const data = await fs.promises.readFile('/large.pdf');
+```
+
+#### 3. Solution B: Event-Driven Architecture (`EventEmitter`)
+Heavy side-effects (Email bhejna, invoice generate karna, third-party Shopify sync) ke liye user ko wait mat karwao. **`EventEmitter`** se event emit karo aur user ko instant 200/201 response de do:
+
+```javascript
+const EventEmitter = require('events');
+const orderEmitter = new EventEmitter();
+
+// 1. Background Listener (Handles heavy tasks asynchronously)
+orderEmitter.on('orderCreated', async (order) => {
+  try {
+    await sendInvoiceEmail(order.customerEmail);
+    await syncShopifyInventory(order.items);
+  } catch (err) {
+    console.error("Background task failed:", err);
+  }
+});
+
+// 2. Controller (Instant User Response - Zero Blocking)
+app.post('/api/orders', async (req, res) => {
+  const newOrder = await Order.create(req.body);
+
+  // Fire and forget event to background:
+  orderEmitter.emit('orderCreated', newOrder);
+
+  // User gets instant response without waiting for email/sync:
+  return res.status(201).json({ success: true, orderId: newOrder._id });
+});
+```
+
+#### 4. Solution C: Heavy CPU-Bound Tasks -> `Worker Threads`
+Agar image resize, PDF generation ya cryptography karni ho, toh Node.js ke **`worker_threads`** module ko use karo taaki wo alag CPU core par execute ho.
+
+---
+
+### PART 2: Race Conditions: The Problem & The Solutions
+
+#### 1. What is a Race Condition? (The Real-World Bug)
+Maan lo ek product ka stock sirf **1** bacha hai. Do users (User A aur User B) ne exactly same millisecond me "Buy Now" click kiya:
+
+```javascript
+// ❌ DANGEROUS CODE (RACE CONDITION RISK!)
+const product = await Product.findById(productId); // Dono users ko stock = 1 mila!
+
+if (product.stock > 0) {
+  // Dono checks pass ho gaye!
+  product.stock = product.stock - 1; // Stock -1 ho gaya! (Over-selling bug)
+  await product.save();
+}
+```
+👉 **Problem:** Application level par "Read then Write" ke beech time gap hota hai jisme concurrent requests clash kar jaati hain.
+
+---
+
+#### 2. How to Prevent Race Conditions (3 Production Solutions):
+
+##### Solution 1: Atomic Database Updates (`$inc` with Filter Check) ⭐⭐⭐ (Best Approach)
+Application me check karne ki jagah Database engine ko **1 single atomic operation** me check aur update karne bolo. Database internal row/document lock lagata hai:
+
+```javascript
+// ✅ ATOMIC UPDATE (Zero Race Condition!)
+const updatedProduct = await Product.findOneAndUpdate(
+  {
+    _id: productId,
+    stock: { $gt: 0 } // 👈 Filter: Sirf tabhi update karo jab stock sach me > 0 ho
+  },
+  {
+    $inc: { stock: -1 } // 👈 Atomic Decrement
+  },
+  { new: true }
+);
+
+if (!updatedProduct) {
+  return res.status(400).json({ message: "Item is already Out of Stock!" });
+}
+```
+*Result:* Agar 100 log ek sath click karenge, tab bhi sirf 1 request succeed hogi, baaki 99 gracefully fail hongi!
+
+##### Solution 2: Database Transactions (ACID Sessions)
+Multi-document operations (Product stock kam karna + Order create karna + Payment log karna):
+```javascript
+const session = await mongoose.startSession();
+session.startTransaction();
+
+try {
+  await Product.updateOne({ _id: prodId, stock: { $gt: 0 } }, { $inc: { stock: -1 } }, { session });
+  await Order.create([orderData], { session });
+
+  await session.commitTransaction(); // Dono safe commit
+} catch (error) {
+  await session.abortTransaction(); // Error aane par poora rollback!
+} finally {
+  session.endSession();
+}
+```
+
+##### Solution 3: Distributed Locks using Redis (Redlock)
+Multi-server load-balanced architecture me Redis key lock use karte hain:
+```javascript
+// Acquire lock for 5 seconds
+const isLocked = await redis.set(`lock:product:${prodId}`, "locked", "NX", "EX", 5);
+if (!isLocked) {
+  return res.status(429).json({ message: "Concurrent request in progress. Try again." });
+}
+// Perform operation and release lock
+await redis.del(`lock:product:${prodId}`);
+```
+
+---
+
+### 🗣️ Interview Answer (45-Sec Master Pitch):
+> *"Sir, Node.js me non-blocking aur concurrency safe architecture ke liye hum 2 key strategies follow karte hain:*
+> 1. ***To Avoid Blocking:*** *Hum kabhi synchronous APIs (`fs.readFileSync`) use nahi karte, hamesha async/await I/O use karte hain. Heavy side-effects (jaise notifications ya third-party sync) ke liye **`EventEmitter` ya Background Queues** use karte hain taaki client ko instant response mile, aur CPU-heavy processing ke liye **Worker Threads** use karte hain.*
+> 2. ***To Prevent Race Conditions:*** *Application-level 'read-then-write' ki jagah Database level par **Atomic Operators (`$inc`, `findOneAndUpdate`) with pre-conditions (`stock: { $gt: 0 }`)** use karte hain. Complex financial operations me **ACID Transactions** aur distributed clusters me **Redis Locks (Redlock)** use karte hain."*
+
 
 
